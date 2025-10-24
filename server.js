@@ -127,7 +127,7 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
         'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo', // Usar 3.5-turbo que es más económico
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
@@ -144,9 +144,35 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('❌ Error de OpenAI:', response.status, errorData);
-      throw new Error(`Error de OpenAI API: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Error de OpenAI:', response.status, errorText);
+      
+      // MANEJO MEJORADO DE ERRORES
+      if (response.status === 429) {
+        return res.status(429).json({ 
+          error: 'Hemos alcanzado el límite temporal de solicitudes a nuestro servicio de IA. Por favor intenta de nuevo en 1-2 minutos.',
+          tipo: 'rate_limit',
+          codigo: 'RATE_LIMIT_EXCEEDED'
+        });
+      } else if (response.status === 401) {
+        return res.status(500).json({ 
+          error: 'Error de configuración del servicio. Por favor contacta al administrador.',
+          tipo: 'auth_error',
+          codigo: 'INVALID_API_KEY'
+        });
+      } else if (response.status === 402) {
+        return res.status(500).json({ 
+          error: 'Límite de cuota excedido. Por favor contacta al administrador.',
+          tipo: 'quota_exceeded',
+          codigo: 'QUOTA_EXCEEDED'
+        });
+      } else {
+        return res.status(500).json({ 
+          error: 'Error temporal del servicio de IA. Por favor intenta nuevamente en unos minutos.',
+          tipo: 'openai_error',
+          codigo: `OPENAI_${response.status}`
+        });
+      }
     }
 
     const data = await response.json();
@@ -162,7 +188,50 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
       jsonStr = contenidoGenerado.split('```')[1].split('```')[0].trim();
     }
     
-    const planContenido = JSON.parse(jsonStr);
+    // Validar y parsear JSON
+    let planContenido;
+    try {
+      planContenido = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error('❌ Error parseando JSON de OpenAI:', parseError);
+      // Si falla el parseo, crear un plan básico
+      planContenido = {
+        profesor: nombreProfesor,
+        institucion: institucion,
+        grado: gradoPlan,
+        materia: materia,
+        tema: tema,
+        duracion: duracionClase || '45',
+        fecha: new Date().toLocaleDateString('es-PA'),
+        objetivos: ['Objetivo 1', 'Objetivo 2'],
+        competencias: ['Competencia 1', 'Competencia 2'],
+        indicadoresLogro: ['Indicador 1', 'Indicador 2'],
+        metodologia: {
+          inicio: 'Actividad de inicio',
+          desarrollo: 'Desarrollo de la clase', 
+          cierre: 'Cierre y reflexión'
+        },
+        actividades: [
+          {
+            nombre: 'Actividad principal',
+            duracion: '30 min',
+            descripcion: 'Descripción de la actividad',
+            recursos: ['Material 1', 'Material 2'],
+            tipoTrabajo: 'Grupal'
+          }
+        ],
+        recursos: ['Recurso 1', 'Recurso 2'],
+        evaluacion: {
+          diagnostica: 'Evaluación diagnóstica',
+          formativa: 'Evaluación formativa',
+          sumativa: 'Evaluación sumativa',
+          instrumentos: ['Lista de cotejo', 'Rúbrica']
+        },
+        adaptaciones: ['Adaptación para necesidades especiales'],
+        tarea: 'Tarea para seguir practicando',
+        observaciones: 'Plan generado automáticamente'
+      };
+    }
     
     console.log('📦 Plan generado exitosamente');
 
@@ -174,9 +243,21 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
 
   } catch (error) {
     console.error('❌ Error en generate-plan:', error);
-    res.status(500).json({ 
-      error: 'Error al generar el plan: ' + error.message 
-    });
+    
+    // Manejo mejorado de errores generales
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      return res.status(503).json({ 
+        error: 'Error de conexión con el servicio. Por favor verifica tu internet e intenta nuevamente.',
+        tipo: 'network_error',
+        codigo: 'NETWORK_ERROR'
+      });
+    } else {
+      return res.status(500).json({ 
+        error: 'Error inesperado al generar el plan. Por favor intenta nuevamente.',
+        tipo: 'server_error', 
+        codigo: 'UNKNOWN_ERROR'
+      });
+    }
   }
 });
 
@@ -189,11 +270,27 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Health check mejorado
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'Bringo Edu Backend',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    openai_configured: !!process.env.OPENAI_API_KEY
+  });
+});
+
 // Manejar rutas no encontradas
 app.use('*', (req, res) => {
   res.status(404).json({ 
     error: 'Endpoint no encontrado',
-    availableEndpoints: ['GET /', 'GET /api/test', 'POST /api/generate-plan']
+    availableEndpoints: [
+      'GET /', 
+      'GET /api/test', 
+      'GET /api/health',
+      'POST /api/generate-plan'
+    ]
   });
 });
 
@@ -202,7 +299,8 @@ app.use((error, req, res, next) => {
   console.error('💥 Error global:', error);
   res.status(500).json({ 
     error: 'Error interno del servidor',
-    message: error.message 
+    message: error.message,
+    codigo: 'INTERNAL_SERVER_ERROR'
   });
 });
 
@@ -211,5 +309,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}`);
   console.log(`📍 Test endpoint: http://localhost:${PORT}/api/test`);
+  console.log(`📍 Health endpoint: http://localhost:${PORT}/api/health`);
   console.log(`📍 Generate plan: http://localhost:${PORT}/api/generate-plan`);
 });
