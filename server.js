@@ -170,6 +170,21 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
       console.log('🔍 DEBUG - Tiene contenidos?:', planContenido.contenidos);
       console.log('🔍 DEBUG - Tipo de contenidos:', typeof planContenido.contenidos);
       
+      // ✅ CORREGIR ESTRUCTURA PARA EL FRONTEND
+      if (planContenido.informacion_general && planContenido.informacion_general.contenidos_conceptuales) {
+        planContenido.contenidos = planContenido.informacion_general.contenidos_conceptuales;
+        planContenido.competencias = planContenido.informacion_general.competencias;
+        planContenido.indicadoresLogro = planContenido.informacion_general.indicadores_de_logro;
+      }
+      
+      if (planContenido.estructura_pedagogica) {
+        planContenido.metodologia = planContenido.estructura_pedagogica.estrategias_metodologicas?.join(', ') || 'Estrategias metodológicas variadas';
+        planContenido.recursos = planContenido.estructura_pedagogica.recursos_y_materiales;
+        planContenido.adaptaciones = planContenido.estructura_pedagogica.adaptaciones_curriculares;
+      }
+      
+      console.log('🔍 DEBUG - Plan corregido:', planContenido);
+      
     } catch (parseError) {
       console.error('❌ Error parseando JSON de OpenAI:', parseError);
       // Fallback básico
