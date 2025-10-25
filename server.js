@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Endpoint para generar planes de clase
+// Endpoint para generar planes TRIMESTRALES
 app.post('/api/generate-plan', async (req, res) => {
   // Configurar CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -31,16 +31,24 @@ app.post('/api/generate-plan', async (req, res) => {
   }
 
   try {
-    const { nombreProfesor, institucion, gradoPlan, materia, tema, duracionClase } = req.body;
+    const { nombreProfesor, institucion, gradoPlan, materia, trimestre } = req.body;
 
-    console.log('📨 Solicitud recibida:', {
-      nombreProfesor, institucion, gradoPlan, materia, tema, duracionClase
+    console.log('📨 Solicitud recibida para plan trimestral:', {
+      nombreProfesor, institucion, gradoPlan, materia, trimestre
     });
 
     // Validar campos requeridos
-    if (!nombreProfesor || !institucion || !gradoPlan || !materia || !tema) {
+    if (!nombreProfesor || !institucion || !gradoPlan || !materia || !trimestre) {
       return res.status(400).json({ 
-        error: 'Todos los campos son requeridos: nombreProfesor, institucion, gradoPlan, materia, tema' 
+        error: 'Todos los campos son requeridos: nombreProfesor, institucion, gradoPlan, materia, trimestre' 
+      });
+    }
+
+    // Validar trimestre
+    const trimestresValidos = ['Primer Trimestre', 'Segundo Trimestre', 'Tercer Trimestre'];
+    if (!trimestresValidos.includes(trimestre)) {
+      return res.status(400).json({ 
+        error: 'Trimestre debe ser: Primer Trimestre, Segundo Trimestre o Tercer Trimestre' 
       });
     }
 
@@ -54,69 +62,40 @@ app.post('/api/generate-plan', async (req, res) => {
       });
     }
 
-    const prompt = `Eres un experto en educación panameña y conoces a fondo el currículo del MEDUCA (Ministerio de Educación de Panamá).
+    const prompt = `Eres un especialista en el Currículo Nacional de Panamá (MEDUCA). Genera un plan de estudios COMPLETO para el TRIMESTRE específico solicitado:
 
-Genera un plan de clase detallado y profesional con la siguiente información:
-- Profesor: ${nombreProfesor}
-- Institución: ${institucion}
-- Grado: ${gradoPlan}
-- Materia: ${materia}
-- Tema: ${tema}
-- Duración de la clase: ${duracionClase} minutos
+- GRADO: ${gradoPlan}
+- ASIGNATURA: ${materia}
+- TRIMESTRE: ${trimestre}
+- DOCENTE: ${nombreProfesor}
+- CENTRO EDUCATIVO: ${institucion}
 
-El plan debe estar alineado con el currículo nacional de Panamá (MEDUCA) e incluir:
+**GENERA UN PLAN COMPLETO SOLO PARA EL ${trimestre}:**
 
-1. INFORMACIÓN GENERAL
-2. OBJETIVOS DE APRENDIZAJE (3-4 objetivos)
-3. COMPETENCIAS A DESARROLLAR (3-5 competencias)
-4. INDICADORES DE LOGRO (3-4 indicadores)
-5. METODOLOGÍA (inicio, desarrollo, cierre)
-6. ACTIVIDADES DETALLADAS (2-4 actividades)
-7. RECURSOS Y MATERIALES
-8. EVALUACIÓN
-9. ADAPTACIONES CURRICULARES
-10. TAREA O ACTIVIDAD DE SEGUIMIENTO
-11. OBSERVACIONES
+BASADO EN LOS CONTENIDOS OFICIALES DEL MEDUCA PARA ${gradoPlan} ${materia} EN EL ${trimestre}:
 
-Genera el plan en formato JSON con esta estructura exacta:
-{
-  "profesor": "",
-  "institucion": "",
-  "grado": "",
-  "materia": "",
-  "tema": "",
-  "duracion": "",
-  "fecha": "",
-  "objetivos": [],
-  "competencias": [],
-  "indicadoresLogro": [],
-  "metodologia": {
-    "inicio": "",
-    "desarrollo": "",
-    "cierre": ""
-  },
-  "actividades": [
-    {
-      "nombre": "",
-      "duracion": "",
-      "descripcion": "",
-      "recursos": [],
-      "tipoTrabajo": ""
-    }
-  ],
-  "recursos": [],
-  "evaluacion": {
-    "diagnostica": "",
-    "formativa": "",
-    "sumativa": "",
-    "instrumentos": []
-  },
-  "adaptaciones": [],
-  "tarea": "",
-  "observaciones": ""
-}
+**INFORMACIÓN GENERAL DEL TRIMESTRE:**
+- Duración estimada: 10-12 semanas
+- Contenidos conceptuales específicos del ${trimestre}
+- Competencias a desarrollar según estándares MEDUCA
+- Indicadores de logro observables y medibles
 
-IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
+**ESTRUCTURA PEDAGÓGICA:**
+- Estrategias metodológicas apropiadas para ${gradoPlan}
+- Recursos y materiales educativos requeridos
+- Instrumentos de evaluación formativa y sumativa
+- Adaptaciones curriculares para atención a la diversidad
+- Actividades de aprendizaje secuenciadas
+
+**ALINEACIÓN CURRICULAR:**
+- Competencias del siglo XXI integradas
+- Enfoque por habilidades y valores
+- Conexión con proyectos transversales
+- Preparación para el siguiente trimestre
+
+IMPORTANTE: Los contenidos deben ser REALES y específicos del currículo MEDUCA para ${gradoPlan} ${materia} en el ${trimestre}.
+
+Responde SOLO con JSON válido, sin texto adicional antes o después.`;
 
     console.log('🔄 Enviando solicitud a OpenAI...');
 
@@ -127,11 +106,11 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
         'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',  // ← MODELO ACTUALIZADO
         messages: [
           {
             role: 'system',
-            content: 'Eres un experto pedagogo especializado en el currículo del MEDUCA de Panamá. Generas planes de clase detallados, profesionales y alineados con el marco curricular panameño. Responde SOLO con JSON válido.'
+            content: 'Eres un experto pedagogo especializado en el currículo del MEDUCA de Panamá. Generas planes trimestrales detallados, profesionales y alineados con el marco curricular panameño. Responde SOLO con JSON válido.'
           },
           {
             role: 'user',
@@ -147,7 +126,7 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
       const errorText = await response.text();
       console.error('❌ Error de OpenAI:', response.status, errorText);
       
-      // MANEJO MEJORADO DE ERRORES
+      // Manejo mejorado de errores
       if (response.status === 429) {
         return res.status(429).json({ 
           error: 'Hemos alcanzado el límite temporal de solicitudes a nuestro servicio de IA. Por favor intenta de nuevo en 1-2 minutos.',
@@ -159,12 +138,6 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
           error: 'Error de configuración del servicio. Por favor contacta al administrador.',
           tipo: 'auth_error',
           codigo: 'INVALID_API_KEY'
-        });
-      } else if (response.status === 402) {
-        return res.status(500).json({ 
-          error: 'Límite de cuota excedido. Por favor contacta al administrador.',
-          tipo: 'quota_exceeded',
-          codigo: 'QUOTA_EXCEEDED'
         });
       } else {
         return res.status(500).json({ 
@@ -194,51 +167,32 @@ IMPORTANTE: Responde SOLO con el JSON, sin texto adicional antes o después.`;
       planContenido = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error('❌ Error parseando JSON de OpenAI:', parseError);
-      // Si falla el parseo, crear un plan básico
+      // Fallback básico
       planContenido = {
-        profesor: nombreProfesor,
-        institucion: institucion,
         grado: gradoPlan,
-        materia: materia,
-        tema: tema,
-        duracion: duracionClase || '45',
-        fecha: new Date().toLocaleDateString('es-PA'),
-        objetivos: ['Objetivo 1', 'Objetivo 2'],
-        competencias: ['Competencia 1', 'Competencia 2'],
-        indicadoresLogro: ['Indicador 1', 'Indicador 2'],
-        metodologia: {
-          inicio: 'Actividad de inicio',
-          desarrollo: 'Desarrollo de la clase', 
-          cierre: 'Cierre y reflexión'
-        },
-        actividades: [
-          {
-            nombre: 'Actividad principal',
-            duracion: '30 min',
-            descripcion: 'Descripción de la actividad',
-            recursos: ['Material 1', 'Material 2'],
-            tipoTrabajo: 'Grupal'
-          }
-        ],
-        recursos: ['Recurso 1', 'Recurso 2'],
-        evaluacion: {
-          diagnostica: 'Evaluación diagnóstica',
-          formativa: 'Evaluación formativa',
-          sumativa: 'Evaluación sumativa',
-          instrumentos: ['Lista de cotejo', 'Rúbrica']
-        },
-        adaptaciones: ['Adaptación para necesidades especiales'],
-        tarea: 'Tarea para seguir practicando',
-        observaciones: 'Plan generado automáticamente'
+        asignatura: materia,
+        trimestre: trimestre,
+        docente: nombreProfesor,
+        institucion: institucion,
+        anioEscolar: new Date().getFullYear().toString(),
+        duracionSemanas: 11,
+        contenidos: ['Contenido 1 según MEDUCA', 'Contenido 2 según MEDUCA'],
+        competencias: ['Competencia 1 MEDUCA', 'Competencia 2 MEDUCA'],
+        indicadoresLogro: ['Indicador 1 observable', 'Indicador 2 medible'],
+        metodologia: 'Estrategias metodológicas alineadas con MEDUCA',
+        recursos: ['Recursos educativos estándar'],
+        evaluacion: ['Instrumentos de evaluación formativa y sumativa'],
+        adaptaciones: ['Adaptaciones para atención a la diversidad'],
+        observaciones: 'Plan generado automáticamente basado en currículo MEDUCA'
       };
     }
     
-    console.log('📦 Plan generado exitosamente');
+    console.log('📦 Plan trimestral generado exitosamente');
 
     res.json({
       ...planContenido,
-      fecha: new Date().toLocaleDateString('es-PA'),
-      generadoPorIA: true
+      generadoPorIA: true,
+      fechaGeneracion: new Date().toISOString()
     });
 
   } catch (error) {
@@ -277,7 +231,8 @@ app.get('/api/health', (req, res) => {
     service: 'Bringo Edu Backend',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    openai_configured: !!process.env.OPENAI_API_KEY
+    openai_configured: !!process.env.OPENAI_API_KEY,
+    features: ['planes_trimestrales']
   });
 });
 
