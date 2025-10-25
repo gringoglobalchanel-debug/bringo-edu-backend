@@ -106,7 +106,7 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
         'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',  // ← MODELO ACTUALIZADO
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -126,7 +126,6 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
       const errorText = await response.text();
       console.error('❌ Error de OpenAI:', response.status, errorText);
       
-      // Manejo mejorado de errores
       if (response.status === 429) {
         return res.status(429).json({ 
           error: 'Hemos alcanzado el límite temporal de solicitudes a nuestro servicio de IA. Por favor intenta de nuevo en 1-2 minutos.',
@@ -165,6 +164,12 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
     let planContenido;
     try {
       planContenido = JSON.parse(jsonStr);
+      
+      // 🔍 DEBUG: VER QUÉ GENERÓ OPENAI
+      console.log('🔍 DEBUG - Plan generado por OpenAI:', planContenido);
+      console.log('🔍 DEBUG - Tiene contenidos?:', planContenido.contenidos);
+      console.log('🔍 DEBUG - Tipo de contenidos:', typeof planContenido.contenidos);
+      
     } catch (parseError) {
       console.error('❌ Error parseando JSON de OpenAI:', parseError);
       // Fallback básico
@@ -198,7 +203,6 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
   } catch (error) {
     console.error('❌ Error en generate-plan:', error);
     
-    // Manejo mejorado de errores generales
     if (error.message.includes('fetch') || error.message.includes('network')) {
       return res.status(503).json({ 
         error: 'Error de conexión con el servicio. Por favor verifica tu internet e intenta nuevamente.',
