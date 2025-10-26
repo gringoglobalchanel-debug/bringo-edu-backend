@@ -72,28 +72,34 @@ app.post('/api/generate-plan', async (req, res) => {
 
 **GENERA UN PLAN COMPLETO SOLO PARA EL ${trimestre}:**
 
-BASADO EN LOS CONTENIDOS OFICIALES DEL MEDUCA PARA ${gradoPlan} ${materia} EN EL ${trimestre}:
-
-**INFORMACIÓN GENERAL DEL TRIMESTRE:**
+**1. INFORMACIÓN GENERAL DEL TRIMESTRE:**
 - Duración estimada: 10-12 semanas
 - Contenidos conceptuales específicos del ${trimestre}
 - Competencias a desarrollar según estándares MEDUCA
 - Indicadores de logro observables y medibles
 
-**ESTRUCTURA PEDAGÓGICA:**
+**2. DESARROLLO DETALLADO DEL CONTENIDO PARA CLASES:**
+Para CADA contenido principal, genera un desarrollo pedagógico completo que incluya:
+- OBJETIVOS DE APRENDIZAJE específicos y medibles
+- MATERIALES Y RECURSOS concretos necesarios
+- FASES DE LA ACTIVIDAD con sesiones detalladas (3-4 sesiones por contenido)
+- Cada sesión debe incluir: tiempo, actividades específicas, metodología
+
+**3. ESTRUCTURA PEDAGÓGICA:**
 - Estrategias metodológicas apropiadas para ${gradoPlan}
 - Recursos y materiales educativos requeridos
 - Instrumentos de evaluación formativa y sumativa
 - Adaptaciones curriculares para atención a la diversidad
-- Actividades de aprendizaje secuenciadas
 
-**ALINEACIÓN CURRICULAR:**
+**4. ALINEACIÓN CURRICULAR:**
 - Competencias del siglo XXI integradas
 - Enfoque por habilidades y valores
 - Conexión con proyectos transversales
-- Preparación para el siguiente trimestre
 
-IMPORTANTE: Los contenidos deben ser REALES y específicos del currículo MEDUCA para ${gradoPlan} ${materia} en el ${trimestre}.
+IMPORTANTE: 
+- Los contenidos deben ser REALES y específicos del currículo MEDUCA para ${gradoPlan} ${materia} en el ${trimestre}.
+- El desarrollo de clases debe ser PRÁCTICO y APLICABLE en el aula.
+- Incluir ejemplos concretos y actividades interactivas.
 
 Responde SOLO con JSON válido, sin texto adicional antes o después.`;
 
@@ -118,7 +124,7 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
           }
         ],
         temperature: 0.7,
-        max_tokens: 3000
+        max_tokens: 4000  // Aumentado para el desarrollo detallado
       })
     });
 
@@ -170,24 +176,73 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
       console.log('🔍 DEBUG - Tiene contenidos?:', planContenido.contenidos);
       console.log('🔍 DEBUG - Tipo de contenidos:', typeof planContenido.contenidos);
       
-      // ✅ CORREGIR ESTRUCTURA PARA EL FRONTEND
+      // ✅ CORREGIR ESTRUCTURA PARA EL FRONTEND - VERSIÓN MEJORADA
       if (planContenido.informacion_general && planContenido.informacion_general.contenidos_conceptuales) {
         planContenido.contenidos = planContenido.informacion_general.contenidos_conceptuales;
         planContenido.competencias = planContenido.informacion_general.competencias;
         planContenido.indicadoresLogro = planContenido.informacion_general.indicadores_de_logro;
       }
-      
+
       if (planContenido.estructura_pedagogica) {
         planContenido.metodologia = planContenido.estructura_pedagogica.estrategias_metodologicas?.join(', ') || 'Estrategias metodológicas variadas';
         planContenido.recursos = planContenido.estructura_pedagogica.recursos_y_materiales;
         planContenido.adaptaciones = planContenido.estructura_pedagogica.adaptaciones_curriculares;
       }
+
+      // ✅ NUEVO: PROCESAR DESARROLLO DE CLASES
+      if (planContenido.desarrollo_clases) {
+        planContenido.desarrolloClases = planContenido.desarrollo_clases;
+      } else if (planContenido.contenidos && Array.isArray(planContenido.contenidos)) {
+        // Si no viene desarrollo_clases, crear uno básico basado en los contenidos
+        planContenido.desarrolloClases = {};
+        planContenido.contenidos.forEach((contenido, index) => {
+          planContenido.desarrolloClases[`Contenido ${index + 1}: ${contenido.substring(0, 50)}...`] = {
+            duracion: '3 sesiones de 45 minutos',
+            objetivos: [
+              `Comprender los conceptos fundamentales de ${contenido.substring(0, 30)}`,
+              `Aplicar los conocimientos en situaciones prácticas`,
+              `Desarrollar habilidades de análisis y síntesis`
+            ],
+            materiales: [
+              'Material didáctico impreso',
+              'Recursos multimedia',
+              'Instrumentos de evaluación'
+            ],
+            fases: [
+              {
+                titulo: 'Introducción y contextualización',
+                actividades: [
+                  { tiempo: '10 min', descripcion: 'Presentación del tema y objetivos' },
+                  { tiempo: '15 min', descripcion: 'Activación de conocimientos previos' },
+                  { tiempo: '20 min', descripcion: 'Exposición teórica interactiva' }
+                ]
+              },
+              {
+                titulo: 'Desarrollo y práctica',
+                actividades: [
+                  { tiempo: '25 min', descripcion: 'Ejercicios prácticos guiados' },
+                  { tiempo: '15 min', descripcion: 'Trabajo en equipos colaborativos' },
+                  { tiempo: '5 min', descripcion: 'Puesta en común de resultados' }
+                ]
+              },
+              {
+                titulo: 'Evaluación y cierre',
+                actividades: [
+                  { tiempo: '10 min', descripcion: 'Aplicación de instrumento de evaluación' },
+                  { tiempo: '5 min', descripcion: 'Retroalimentación y conclusiones' }
+                ]
+              }
+            ]
+          };
+        });
+      }
       
       console.log('🔍 DEBUG - Plan corregido:', planContenido);
+      console.log('🔍 DEBUG - Tiene desarrolloClases?:', !!planContenido.desarrolloClases);
       
     } catch (parseError) {
       console.error('❌ Error parseando JSON de OpenAI:', parseError);
-      // Fallback básico
+      // Fallback básico con desarrolloClases
       planContenido = {
         grado: gradoPlan,
         asignatura: materia,
@@ -203,7 +258,47 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
         recursos: ['Recursos educativos estándar'],
         evaluacion: ['Instrumentos de evaluación formativa y sumativa'],
         adaptaciones: ['Adaptaciones para atención a la diversidad'],
-        observaciones: 'Plan generado automáticamente basado en currículo MEDUCA'
+        observaciones: 'Plan generado automáticamente basado en currículo MEDUCA',
+        desarrolloClases: {
+          "Contenido 1: Contenido 1 según MEDUCA...": {
+            duracion: '3 sesiones de 45 minutos',
+            objetivos: [
+              'Comprender los conceptos fundamentales',
+              'Aplicar los conocimientos en situaciones prácticas',
+              'Desarrollar habilidades de análisis'
+            ],
+            materiales: [
+              'Material didáctico impreso',
+              'Recursos multimedia',
+              'Instrumentos de evaluación'
+            ],
+            fases: [
+              {
+                titulo: 'Introducción y contextualización',
+                actividades: [
+                  { tiempo: '10 min', descripcion: 'Presentación del tema y objetivos' },
+                  { tiempo: '15 min', descripcion: 'Activación de conocimientos previos' },
+                  { tiempo: '20 min', descripcion: 'Exposición teórica interactiva' }
+                ]
+              },
+              {
+                titulo: 'Desarrollo y práctica',
+                actividades: [
+                  { tiempo: '25 min', descripcion: 'Ejercicios prácticos guiados' },
+                  { tiempo: '15 min', descripcion: 'Trabajo en equipos colaborativos' },
+                  { tiempo: '5 min', descripcion: 'Puesta en común de resultados' }
+                ]
+              },
+              {
+                titulo: 'Evaluación y cierre',
+                actividades: [
+                  { tiempo: '10 min', descripcion: 'Aplicación de instrumento de evaluación' },
+                  { tiempo: '5 min', descripcion: 'Retroalimentación y conclusiones' }
+                ]
+              }
+            ]
+          }
+        }
       };
     }
     
