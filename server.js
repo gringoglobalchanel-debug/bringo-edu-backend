@@ -124,7 +124,7 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
           }
         ],
         temperature: 0.7,
-        max_tokens: 4000  // Aumentado para el desarrollo detallado
+        max_tokens: 4000
       })
     });
 
@@ -172,11 +172,14 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
       planContenido = JSON.parse(jsonStr);
       
       // 🔍 DEBUG: VER QUÉ GENERÓ OPENAI
-      console.log('🔍 DEBUG - Plan generado por OpenAI:', planContenido);
-      console.log('🔍 DEBUG - Tiene contenidos?:', planContenido.contenidos);
-      console.log('🔍 DEBUG - Tipo de contenidos:', typeof planContenido.contenidos);
+      console.log('🔍 DEBUG - Plan generado por OpenAI:', JSON.stringify(planContenido, null, 2));
       
       // ✅ CORREGIR ESTRUCTURA PARA EL FRONTEND - VERSIÓN MEJORADA
+      // Si la respuesta viene dentro de plan_trimestral, extraerla
+      if (planContenido.plan_trimestral) {
+        planContenido = planContenido.plan_trimestral;
+      }
+
       if (planContenido.informacion_general && planContenido.informacion_general.contenidos_conceptuales) {
         planContenido.contenidos = planContenido.informacion_general.contenidos_conceptuales;
         planContenido.competencias = planContenido.informacion_general.competencias;
@@ -185,51 +188,76 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
 
       if (planContenido.estructura_pedagogica) {
         planContenido.metodologia = planContenido.estructura_pedagogica.estrategias_metodologicas?.join(', ') || 'Estrategias metodológicas variadas';
-        planContenido.recursos = planContenido.estructura_pedagogica.recursos_y_materiales;
+        planContenido.recursos = planContenido.estructura_pedagogica.recursos_materiales;
         planContenido.adaptaciones = planContenido.estructura_pedagogica.adaptaciones_curriculares;
+        planContenido.evaluacion = planContenido.estructura_pedagogica.instrumentos_evaluacion?.formativa || ['Evaluación formativa continua'];
       }
 
       // ✅ NUEVO: PROCESAR DESARROLLO DE CLASES
       if (planContenido.desarrollo_clases) {
         planContenido.desarrolloClases = planContenido.desarrollo_clases;
+      } else if (planContenido.desarrollo_detallado_contenido && Array.isArray(planContenido.desarrollo_detallado_contenido)) {
+        // Mapear desarrollo_detallado_contenido a desarrolloClases
+        planContenido.desarrolloClases = {};
+        planContenido.desarrollo_detallado_contenido.forEach((desarrollo, index) => {
+          const titulo = desarrollo.titulo_contenido || `Contenido ${index + 1}`;
+          planContenido.desarrolloClases[titulo] = {
+            duracion: desarrollo.duracion || '3 sesiones de 45 minutos',
+            objetivos: desarrollo.objetivos_aprendizaje || [
+              'Comprender conceptos fundamentales',
+              'Aplicar conocimientos en situaciones prácticas'
+            ],
+            materiales: desarrollo.materiales_recursos || [
+              'Material didáctico impreso',
+              'Recursos multimedia'
+            ],
+            fases: desarrollo.sesiones_detalladas || [
+              {
+                titulo: 'Introducción',
+                actividades: [
+                  { tiempo: '15 min', descripcion: 'Presentación del tema' },
+                  { tiempo: '30 min', descripcion: 'Desarrollo de actividades' }
+                ]
+              }
+            ]
+          };
+        });
       } else if (planContenido.contenidos && Array.isArray(planContenido.contenidos)) {
-        // Si no viene desarrollo_clases, crear uno básico basado en los contenidos
+        // Si no viene desarrollo, crear uno básico
         planContenido.desarrolloClases = {};
         planContenido.contenidos.forEach((contenido, index) => {
           planContenido.desarrolloClases[`Contenido ${index + 1}: ${contenido.substring(0, 50)}...`] = {
             duracion: '3 sesiones de 45 minutos',
             objetivos: [
-              `Comprender los conceptos fundamentales de ${contenido.substring(0, 30)}`,
-              `Aplicar los conocimientos en situaciones prácticas`,
-              `Desarrollar habilidades de análisis y síntesis`
+              `Comprender: ${contenido.substring(0, 30)}`,
+              'Aplicar conocimientos prácticos',
+              'Desarrollar habilidades creativas'
             ],
             materiales: [
-              'Material didáctico impreso',
-              'Recursos multimedia',
+              'Material didáctico',
+              'Recursos artísticos',
               'Instrumentos de evaluación'
             ],
             fases: [
               {
-                titulo: 'Introducción y contextualización',
+                titulo: 'Introducción y exploración',
                 actividades: [
-                  { tiempo: '10 min', descripcion: 'Presentación del tema y objetivos' },
-                  { tiempo: '15 min', descripcion: 'Activación de conocimientos previos' },
-                  { tiempo: '20 min', descripcion: 'Exposición teórica interactiva' }
+                  { tiempo: '10 min', descripcion: 'Presentación del tema artístico' },
+                  { tiempo: '20 min', descripcion: 'Exploración de conceptos' }
                 ]
               },
               {
-                titulo: 'Desarrollo y práctica',
+                titulo: 'Desarrollo creativo',
                 actividades: [
-                  { tiempo: '25 min', descripcion: 'Ejercicios prácticos guiados' },
-                  { tiempo: '15 min', descripcion: 'Trabajo en equipos colaborativos' },
-                  { tiempo: '5 min', descripcion: 'Puesta en común de resultados' }
+                  { tiempo: '30 min', descripcion: 'Actividad práctica creativa' },
+                  { tiempo: '10 min', descripcion: 'Compartir resultados' }
                 ]
               },
               {
-                titulo: 'Evaluación y cierre',
+                titulo: 'Reflexión y cierre',
                 actividades: [
-                  { tiempo: '10 min', descripcion: 'Aplicación de instrumento de evaluación' },
-                  { tiempo: '5 min', descripcion: 'Retroalimentación y conclusiones' }
+                  { tiempo: '10 min', descripcion: 'Reflexión grupal' },
+                  { tiempo: '5 min', descripcion: 'Conclusiones' }
                 ]
               }
             ]
@@ -237,7 +265,7 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
         });
       }
       
-      console.log('🔍 DEBUG - Plan corregido:', planContenido);
+      console.log('🔍 DEBUG - Plan corregido:', JSON.stringify(planContenido, null, 2));
       console.log('🔍 DEBUG - Tiene desarrolloClases?:', !!planContenido.desarrolloClases);
       
     } catch (parseError) {
