@@ -1,5 +1,9 @@
 const express = require('express');
 const cors = require('cors');
+const { google } = require('googleapis');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -7,14 +11,59 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Configurar multer para archivos temporales
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
+
+// Configurar Google Drive API
+const configureGoogleDrive = () => {
+  try {
+    const credentials = {
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
+
+    if (!credentials.client_email || !credentials.private_key) {
+      console.warn('⚠️  Google Drive no configurado - faltan credenciales');
+      return null;
+    }
+
+    const auth = new google.auth.JWT(
+      credentials.client_email,
+      null,
+      credentials.private_key,
+      ['https://www.googleapis.com/auth/drive.file']
+    );
+
+    return google.drive({ version: 'v3', auth });
+  } catch (error) {
+    console.error('❌ Error configurando Google Drive:', error);
+    return null;
+  }
+};
 
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
     message: '🚀 Bringo Edu Backend funcionando!',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    features: ['openai-plans', 'google-drive-export']
   });
 });
 
@@ -473,24 +522,224 @@ app.post('/api/generate-plan', async (req, res) => {
   }
 });
 
+// Endpoint para subir archivos a Google Drive
+app.post('/api/upload-to-drive', upload.single('archivo'), async (req, res) => {
+  try {
+    console.log('📨 Solicitud de subida a Google Drive recibida');
+
+    const { tipo, nombreArchivo, datos } = req.body;
+    const archivo = req.file;
+
+    // Validar que tenemos datos o archivo
+    if (!archivo && !datos) {
+      return res.status(400).json({
+        error: 'Se requieren datos o un archivo para subir',
+        success: false
+      });
+    }
+
+    const drive = configureGoogleDrive();
+    if (!drive) {
+      return res.status(503).json({
+        error: 'Google Drive no está configurado en el servidor',
+        success: false,
+        codigo: 'DRIVE_NOT_CONFIGURED'
+      });
+    }
+
+    let fileContent, mimeType, finalFileName;
+
+    if (archivo) {
+      // Subir archivo directamente
+      fileContent = fs.createReadStream(archivo.path);
+      mimeType = archivo.mimetype;
+      finalFileName = archivo.originalname;
+    } else {
+      // Crear archivo desde datos JSON
+      const contenido = JSON.stringify(datos, null, 2);
+      finalFileName = `${nombreArchivo || 'datos_exportados'}.json`;
+      mimeType = 'application/json';
+      
+      // Crear archivo temporal
+      const tempPath = path.join('uploads', finalFileName);
+      fs.writeFileSync(tempPath, contenido);
+      fileContent = fs.createReadStream(tempPath);
+    }
+
+    // Subir a Google Drive
+    const response = await drive.files.create({
+      requestBody: {
+        name: finalFileName,
+        mimeType: mimeType,
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID || 'root']
+      },
+      media: {
+        mimeType: mimeType,
+        body: fileContent
+      },
+      fields: 'id, name, webViewLink, webContentLink'
+    });
+
+    console.log('✅ Archivo subido a Google Drive:', response.data.name);
+
+    // Limpiar archivos temporales
+    if (archivo) {
+      fs.unlinkSync(archivo.path);
+    }
+    if (!archivo && datos) {
+      fs.unlinkSync(path.join('uploads', finalFileName));
+    }
+
+    res.json({
+      success: true,
+      message: 'Archivo subido exitosamente a Google Drive',
+      fileId: response.data.id,
+      fileName: response.data.name,
+      fileUrl: response.data.webViewLink,
+      downloadUrl: response.data.webContentLink
+    });
+
+  } catch (error) {
+    console.error('❌ Error subiendo a Google Drive:', error);
+    
+    // Limpiar archivos temporales en caso de error
+    if (req.file) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(500).json({
+      error: 'Error al subir archivo a Google Drive: ' + error.message,
+      success: false,
+      codigo: 'DRIVE_UPLOAD_ERROR'
+    });
+  }
+});
+
+// Endpoint para exportar datos específicos a Google Drive
+app.post('/api/export-to-drive', async (req, res) => {
+  try {
+    const { datos, nombreArchivo, tipo } = req.body;
+
+    console.log('📊 Exportando datos a Google Drive:', { tipo, nombreArchivo });
+
+    if (!datos) {
+      return res.status(400).json({
+        error: 'Se requieren datos para exportar',
+        success: false
+      });
+    }
+
+    const drive = configureGoogleDrive();
+    if (!drive) {
+      return res.status(503).json({
+        error: 'Google Drive no está configurado',
+        success: false,
+        codigo: 'DRIVE_NOT_CONFIGURED'
+      });
+    }
+
+    // Determinar formato y contenido basado en el tipo
+    let contenido, mimeType, extension;
+    
+    switch (tipo) {
+      case 'excel':
+        contenido = JSON.stringify(datos, null, 2);
+        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        extension = 'xlsx';
+        break;
+      case 'pdf':
+        contenido = `Reporte PDF - ${new Date().toLocaleDateString()}\n\n${JSON.stringify(datos, null, 2)}`;
+        mimeType = 'application/pdf';
+        extension = 'pdf';
+        break;
+      case 'word':
+        contenido = `Reporte Word - ${new Date().toLocaleDateString()}\n\n${JSON.stringify(datos, null, 2)}`;
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        extension = 'docx';
+        break;
+      default:
+        contenido = JSON.stringify(datos, null, 2);
+        mimeType = 'application/json';
+        extension = 'json';
+    }
+
+    const finalFileName = `${nombreArchivo || 'exportacion'}.${extension}`;
+    const tempPath = path.join('uploads', finalFileName);
+    
+    fs.writeFileSync(tempPath, contenido);
+    const fileContent = fs.createReadStream(tempPath);
+
+    const response = await drive.files.create({
+      requestBody: {
+        name: finalFileName,
+        mimeType: mimeType,
+        description: `Exportado desde Bringo Edu - ${tipo}`,
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID || 'root']
+      },
+      media: {
+        mimeType: mimeType,
+        body: fileContent
+      },
+      fields: 'id, name, webViewLink, webContentLink'
+    });
+
+    // Limpiar archivo temporal
+    fs.unlinkSync(tempPath);
+
+    console.log('✅ Exportación a Google Drive completada');
+
+    res.json({
+      success: true,
+      message: `Datos exportados a Google Drive como ${extension.toUpperCase()}`,
+      fileId: response.data.id,
+      fileName: response.data.name,
+      fileUrl: response.data.webViewLink,
+      tipo: tipo
+    });
+
+  } catch (error) {
+    console.error('❌ Error en export-to-drive:', error);
+    res.status(500).json({
+      error: 'Error al exportar a Google Drive: ' + error.message,
+      success: false
+    });
+  }
+});
+
+// Endpoint para verificar configuración de Google Drive
+app.get('/api/drive-status', (req, res) => {
+  const drive = configureGoogleDrive();
+  
+  res.json({
+    drive_configured: !!drive,
+    service_account: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    folder_id: process.env.GOOGLE_DRIVE_FOLDER_ID || 'root',
+    features: ['upload', 'export']
+  });
+});
+
 // Endpoint de prueba
 app.get('/api/test', (req, res) => {
   res.json({ 
     message: '✅ Backend funcionando correctamente',
     environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    features: ['openai-plans', 'google-drive-export']
   });
 });
 
 // Health check mejorado
 app.get('/api/health', (req, res) => {
+  const driveStatus = configureGoogleDrive();
+  
   res.json({
     status: 'healthy',
     service: 'Bringo Edu Backend',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     openai_configured: !!process.env.OPENAI_API_KEY,
-    features: ['planes_trimestrales']
+    google_drive_configured: !!driveStatus,
+    features: ['planes_trimestrales', 'google_drive_export']
   });
 });
 
@@ -502,7 +751,10 @@ app.use('*', (req, res) => {
       'GET /', 
       'GET /api/test', 
       'GET /api/health',
-      'POST /api/generate-plan'
+      'GET /api/drive-status',
+      'POST /api/generate-plan',
+      'POST /api/upload-to-drive', 
+      'POST /api/export-to-drive'
     ]
   });
 });
@@ -517,11 +769,17 @@ app.use((error, req, res, next) => {
   });
 });
 
+// Crear directorio uploads si no existe
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}`);
   console.log(`📍 Test endpoint: http://localhost:${PORT}/api/test`);
   console.log(`📍 Health endpoint: http://localhost:${PORT}/api/health`);
+  console.log(`📍 Drive status: http://localhost:${PORT}/api/drive-status`);
   console.log(`📍 Generate plan: http://localhost:${PORT}/api/generate-plan`);
 });
