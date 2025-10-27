@@ -62,46 +62,162 @@ app.post('/api/generate-plan', async (req, res) => {
       });
     }
 
-    const prompt = `Eres un especialista en el Currículo Nacional de Panamá (MEDUCA). Genera un plan de estudios COMPLETO para el TRIMESTRE específico solicitado:
+    const prompt = `Eres un especialista en el Currículo Nacional de Panamá (MEDUCA). Genera un plan de estudios COMPLETO y DETALLADO para el TRIMESTRE específico:
 
+**CONTEXTO:**
 - GRADO: ${gradoPlan}
-- ASIGNATURA: ${materia}
+- ASIGNATURA: ${materia} 
 - TRIMESTRE: ${trimestre}
 - DOCENTE: ${nombreProfesor}
 - CENTRO EDUCATIVO: ${institucion}
 
-**GENERA UN PLAN COMPLETO SOLO PARA EL ${trimestre}:**
+**INSTRUCCIONES ESPECÍFICAS - GENERA SOLO JSON VÁLIDO:**
 
-**1. INFORMACIÓN GENERAL DEL TRIMESTRE:**
-- Duración estimada: 10-12 semanas
-- Contenidos conceptuales específicos del ${trimestre}
-- Competencias a desarrollar según estándares MEDUCA
-- Indicadores de logro observables y medibles
+**1. ESTRUCTURA OBLIGATORIA DEL JSON:**
+{
+  "plan_trimestral": {
+    "informacion_general": {
+      "grado": "${gradoPlan}",
+      "asignatura": "${materia}",
+      "trimestre": "${trimestre}",
+      "docente": "${nombreProfesor}",
+      "institucion": "${institucion}",
+      "anioEscolar": "${new Date().getFullYear()}",
+      "duracionSemanas": "10-12",
+      "contenidos_conceptuales": ["array de 3-5 contenidos REALES del currículo MEDUCA"],
+      "competencias": ["array de 3-5 competencias específicas MEDUCA"],
+      "indicadores_de_logro": ["array de 4-6 indicadores observables y medibles"]
+    },
+    "estructura_pedagogica": {
+      "estrategias_metodologicas": ["array de 3-4 estrategias aplicables"],
+      "recursos_materiales": ["array de recursos CONCRETOS y disponibles"],
+      "instrumentos_evaluacion": {
+        "formativa": ["array de 3-4 instrumentos formativos"],
+        "sumativa": ["array de 2-3 instrumentos sumativos"]
+      },
+      "adaptaciones_curriculares": ["array de 2-3 adaptaciones para diversidad"]
+    },
+    "desarrollo_clases": {
+      "CONTENIDO_1_TITULO_REAL": {
+        "duracion": "3-4 sesiones de 45 minutos (ESPECÍFICA según complejidad)",
+        "objetivos_aprendizaje": ["3-4 objetivos medibles y específicos"],
+        "materiales_recursos": ["materiales CONCRETOS y específicos para este contenido"],
+        "sesiones_detalladas": [
+          {
+            "titulo": "SESIÓN 1 - Introducción y exploración",
+            "actividades": [
+              {
+                "tiempo": "10 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Presentación interactiva del tema usando ejemplos reales"
+              },
+              {
+                "tiempo": "15 min", 
+                "descripcion": "ACTIVIDAD CONCRETA: Lluvia de ideas grupal sobre conceptos previos"
+              },
+              {
+                "tiempo": "20 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicio práctico guiado con material concreto"
+              }
+            ]
+          },
+          {
+            "titulo": "SESIÓN 2 - Desarrollo y aplicación",
+            "actividades": [
+              {
+                "tiempo": "15 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Explicación teórica con ejemplos aplicados"
+              },
+              {
+                "tiempo": "25 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Trabajo en equipos resolviendo problemas reales"
+              },
+              {
+                "tiempo": "5 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Puesta en común de resultados"
+              }
+            ]
+          },
+          {
+            "titulo": "SESIÓN 3 - Profundización y evaluación",
+            "actividades": [
+              {
+                "tiempo": "20 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicios de mayor complejidad guiados"
+              },
+              {
+                "tiempo": "15 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Aplicación de instrumento de evaluación formativa"
+              },
+              {
+                "tiempo": "10 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Retroalimentación y conclusiones"
+              }
+            ]
+          }
+        ]
+      },
+      "CONTENIDO_2_TITULO_REAL": {
+        "duracion": "2-3 sesiones de 45 minutos",
+        "objetivos_aprendizaje": ["3-4 objetivos medibles"],
+        "materiales_recursos": ["materiales específicos para este contenido"],
+        "sesiones_detalladas": [
+          {
+            "titulo": "SESIÓN 1 - Fundamentos conceptuales",
+            "actividades": [
+              {
+                "tiempo": "15 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Exposición dialogada con apoyo visual"
+              },
+              {
+                "tiempo": "20 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicios de aplicación básica"
+              },
+              {
+                "tiempo": "10 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Socialización de aprendizajes"
+              }
+            ]
+          },
+          {
+            "titulo": "SESIÓN 2 - Práctica integradora", 
+            "actividades": [
+              {
+                "tiempo": "25 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Resolución de casos prácticos en equipos"
+              },
+              {
+                "tiempo": "15 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Presentación de soluciones"
+              },
+              {
+                "tiempo": "5 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Coevaluación entre pares"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "observaciones": "Texto con recomendaciones prácticas para implementación"
+  }
+}
 
-**2. DESARROLLO DETALLADO DEL CONTENIDO PARA CLASES:**
-Para CADA contenido principal, genera un desarrollo pedagógico completo que incluya:
-- OBJETIVOS DE APRENDIZAJE específicos y medibles
-- MATERIALES Y RECURSOS concretos necesarios
-- FASES DE LA ACTIVIDAD con sesiones detalladas (3-4 sesiones por contenido)
-- Cada sesión debe incluir: tiempo, actividades específicas, metodología
+**2. REQUISITOS ESPECÍFICOS:**
 
-**3. ESTRUCTURA PEDAGÓGICA:**
-- Estrategias metodológicas apropiadas para ${gradoPlan}
-- Recursos y materiales educativos requeridos
-- Instrumentos de evaluación formativa y sumativa
-- Adaptaciones curriculares para atención a la diversidad
+- Los CONTENIDOS deben ser REALES del currículo MEDUCA para ${gradoPlan} ${materia}
+- Cada contenido en "desarrollo_clases" debe tener entre 2-4 sesiones REALISTAS
+- Las ACTIVIDADES deben ser CONCRETAS, PRÁCTICAS y APLICABLES en aula
+- Los MATERIALES deben ser ESPECÍFICOS y disponibles en escuelas panameñas
+- Las DURACIONES deben ser REALISTAS (45 minutos por sesión)
+- Los OBJETIVOS deben ser MEDIBLES y ESPECÍFICOS
 
-**4. ALINEACIÓN CURRICULAR:**
-- Competencias del siglo XXI integradas
-- Enfoque por habilidades y valores
-- Conexión con proyectos transversales
+**3. EJEMPLOS DE ACTIVIDADES CONCRETAS:**
+- "Los estudiantes identificarán patrones usando fichas de colores"
+- "Trabajo en equipos resolviendo problemas del contexto local"
+- "Elaboración de mapa conceptual colaborativo"
+- "Simulación de situaciones reales aplicando conceptos"
 
-IMPORTANTE: 
-- Los contenidos deben ser REALES y específicos del currículo MEDUCA para ${gradoPlan} ${materia} en el ${trimestre}.
-- El desarrollo de clases debe ser PRÁCTICO y APLICABLE en el aula.
-- Incluir ejemplos concretos y actividades interactivas.
-
-Responde SOLO con JSON válido, sin texto adicional antes o después.`;
+**IMPORTANTE: Responde ÚNICAMENTE con el JSON válido, sin texto adicional, sin comentarios, sin markdown.**`;
 
     console.log('🔄 Enviando solicitud a OpenAI...');
 
@@ -116,7 +232,7 @@ Responde SOLO con JSON válido, sin texto adicional antes o después.`;
         messages: [
           {
             role: 'system',
-            content: 'Eres un experto pedagogo especializado en el currículo del MEDUCA de Panamá. Generas planes trimestrales detallados, profesionales y alineados con el marco curricular panameño. Responde SOLO con JSON válido.'
+            content: 'Eres un experto pedagogo especializado en el currículo del MEDUCA de Panamá. Generas planes trimestrales detallados, profesionales y alineados con el marco curricular panameño. Responde SOLO con JSON válido, sin texto adicional.'
           },
           {
             role: 'user',
