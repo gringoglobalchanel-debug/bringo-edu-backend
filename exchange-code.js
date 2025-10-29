@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 
-const CLIENT_ID = 'tu-client-id-real.apps.googleusercontent.com';
-const CLIENT_SECRET = 'GOCSPX-tu-client-secret-real';
+const CLIENT_ID = "667720262345-0glb797o2bk786k8v88un6hleda7k3st.apps.googleusercontent.com";
+const CLIENT_SECRET = "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";
 const REDIRECT_URI = 'https://bringo-edu-backend-2.onrender.com';
 
 const oauth2Client = new google.auth.OAuth2(
