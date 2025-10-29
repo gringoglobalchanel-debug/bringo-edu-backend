@@ -14,21 +14,14 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Configurar multer para archivos temporales
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = 'uploads';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir);
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
+// Configurar multer para archivos en memoria (más eficiente)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB límite
   }
 });
-
-const upload = multer({ storage });
 
 // Configurar Google Drive API
 const configureGoogleDrive = () => {
@@ -522,10 +515,92 @@ app.post('/api/generate-plan', async (req, res) => {
   }
 });
 
-// Endpoint para subir archivos a Google Drive
+// ✅ ENDPOINT CORREGIDO - AHORA ACEPTA FORM DATA
+app.post('/api/export-to-drive', upload.single('file'), async (req, res) => {
+  try {
+    console.log('📨 Solicitud de exportación a Google Drive recibida');
+    
+    // Obtener datos del FormData
+    const file = req.file;
+    const { filename, mimeType, format } = req.body;
+
+    console.log('📦 Datos recibidos:', {
+      tieneArchivo: !!file,
+      filename,
+      mimeType,
+      format,
+      tamañoArchivo: file ? file.size + ' bytes' : 'No aplica'
+    });
+
+    // Validar que tenemos un archivo
+    if (!file) {
+      return res.status(400).json({
+        error: 'Se requiere un archivo para subir a Google Drive',
+        success: false
+      });
+    }
+
+    const drive = configureGoogleDrive();
+    if (!drive) {
+      return res.status(503).json({
+        error: 'Google Drive no está configurado en el servidor',
+        success: false,
+        codigo: 'DRIVE_NOT_CONFIGURED'
+      });
+    }
+
+    // Usar el nombre del archivo del FormData o generar uno
+    const finalFileName = filename || file.originalname || `archivo_${Date.now()}`;
+    const finalMimeType = mimeType || file.mimetype;
+
+    console.log('🚀 Subiendo a Google Drive:', {
+      fileName: finalFileName,
+      mimeType: finalMimeType,
+      size: file.size
+    });
+
+    // Subir a Google Drive
+    const response = await drive.files.create({
+      requestBody: {
+        name: finalFileName,
+        mimeType: finalMimeType,
+        description: `Exportado desde Bringo Edu - ${format || 'archivo'}`,
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID || 'root']
+      },
+      media: {
+        mimeType: finalMimeType,
+        body: require('stream').Readable.from(file.buffer)
+      },
+      fields: 'id, name, webViewLink, webContentLink'
+    });
+
+    console.log('✅ Archivo subido exitosamente a Google Drive:', response.data.name);
+
+    res.json({
+      success: true,
+      message: 'Archivo subido exitosamente a Google Drive',
+      fileId: response.data.id,
+      fileName: response.data.name,
+      fileUrl: response.data.webViewLink,
+      downloadUrl: response.data.webContentLink,
+      format: format
+    });
+
+  } catch (error) {
+    console.error('❌ Error subiendo a Google Drive:', error);
+    
+    res.status(500).json({
+      error: 'Error al subir archivo a Google Drive: ' + error.message,
+      success: false,
+      codigo: 'DRIVE_UPLOAD_ERROR'
+    });
+  }
+});
+
+// Endpoint para subir archivos a Google Drive (mantenido por compatibilidad)
 app.post('/api/upload-to-drive', upload.single('archivo'), async (req, res) => {
   try {
-    console.log('📨 Solicitud de subida a Google Drive recibida');
+    console.log('📨 Solicitud de subida a Google Drive recibida (legacy endpoint)');
 
     const { tipo, nombreArchivo, datos } = req.body;
     const archivo = req.file;
@@ -550,8 +625,8 @@ app.post('/api/upload-to-drive', upload.single('archivo'), async (req, res) => {
     let fileContent, mimeType, finalFileName;
 
     if (archivo) {
-      // Subir archivo directamente
-      fileContent = fs.createReadStream(archivo.path);
+      // Subir archivo directamente desde buffer
+      fileContent = require('stream').Readable.from(archivo.buffer);
       mimeType = archivo.mimetype;
       finalFileName = archivo.originalname;
     } else {
@@ -559,11 +634,7 @@ app.post('/api/upload-to-drive', upload.single('archivo'), async (req, res) => {
       const contenido = JSON.stringify(datos, null, 2);
       finalFileName = `${nombreArchivo || 'datos_exportados'}.json`;
       mimeType = 'application/json';
-      
-      // Crear archivo temporal
-      const tempPath = path.join('uploads', finalFileName);
-      fs.writeFileSync(tempPath, contenido);
-      fileContent = fs.createReadStream(tempPath);
+      fileContent = require('stream').Readable.from(Buffer.from(contenido));
     }
 
     // Subir a Google Drive
@@ -582,14 +653,6 @@ app.post('/api/upload-to-drive', upload.single('archivo'), async (req, res) => {
 
     console.log('✅ Archivo subido a Google Drive:', response.data.name);
 
-    // Limpiar archivos temporales
-    if (archivo) {
-      fs.unlinkSync(archivo.path);
-    }
-    if (!archivo && datos) {
-      fs.unlinkSync(path.join('uploads', finalFileName));
-    }
-
     res.json({
       success: true,
       message: 'Archivo subido exitosamente a Google Drive',
@@ -601,107 +664,11 @@ app.post('/api/upload-to-drive', upload.single('archivo'), async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error subiendo a Google Drive:', error);
-    
-    // Limpiar archivos temporales en caso de error
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
 
     res.status(500).json({
       error: 'Error al subir archivo a Google Drive: ' + error.message,
       success: false,
       codigo: 'DRIVE_UPLOAD_ERROR'
-    });
-  }
-});
-
-// Endpoint para exportar datos específicos a Google Drive
-app.post('/api/export-to-drive', async (req, res) => {
-  try {
-    const { datos, nombreArchivo, tipo } = req.body;
-
-    console.log('📊 Exportando datos a Google Drive:', { tipo, nombreArchivo });
-
-    if (!datos) {
-      return res.status(400).json({
-        error: 'Se requieren datos para exportar',
-        success: false
-      });
-    }
-
-    const drive = configureGoogleDrive();
-    if (!drive) {
-      return res.status(503).json({
-        error: 'Google Drive no está configurado',
-        success: false,
-        codigo: 'DRIVE_NOT_CONFIGURED'
-      });
-    }
-
-    // Determinar formato y contenido basado en el tipo
-    let contenido, mimeType, extension;
-    
-    switch (tipo) {
-      case 'excel':
-        contenido = JSON.stringify(datos, null, 2);
-        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        extension = 'xlsx';
-        break;
-      case 'pdf':
-        contenido = `Reporte PDF - ${new Date().toLocaleDateString()}\n\n${JSON.stringify(datos, null, 2)}`;
-        mimeType = 'application/pdf';
-        extension = 'pdf';
-        break;
-      case 'word':
-        contenido = `Reporte Word - ${new Date().toLocaleDateString()}\n\n${JSON.stringify(datos, null, 2)}`;
-        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        extension = 'docx';
-        break;
-      default:
-        contenido = JSON.stringify(datos, null, 2);
-        mimeType = 'application/json';
-        extension = 'json';
-    }
-
-    const finalFileName = `${nombreArchivo || 'exportacion'}.${extension}`;
-    const tempPath = path.join('uploads', finalFileName);
-    
-    fs.writeFileSync(tempPath, contenido);
-    const fileContent = fs.createReadStream(tempPath);
-
-    const response = await drive.files.create({
-      requestBody: {
-        name: finalFileName,
-        mimeType: mimeType,
-        description: `Exportado desde Bringo Edu - ${tipo}`,
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID || 'root']
-      },
-      media: {
-        mimeType: mimeType,
-        body: fileContent
-      },
-      fields: 'id, name, webViewLink, webContentLink'
-    });
-
-    // Limpiar archivo temporal
-    fs.unlinkSync(tempPath);
-
-    console.log('✅ Exportación a Google Drive completada');
-
-    res.json({
-      success: true,
-      message: `Datos exportados a Google Drive como ${extension.toUpperCase()}`,
-      fileId: response.data.id,
-      fileName: response.data.name,
-      fileUrl: response.data.webViewLink,
-      tipo: tipo
-    });
-
-  } catch (error) {
-    console.error('❌ Error en export-to-drive:', error);
-    res.status(500).json({
-      error: 'Error al exportar a Google Drive: ' + error.message,
-      success: false
     });
   }
 });
@@ -768,11 +735,6 @@ app.use((error, req, res, next) => {
     codigo: 'INTERNAL_SERVER_ERROR'
   });
 });
-
-// Crear directorio uploads si no existe
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
 
 // Iniciar servidor
 app.listen(PORT, () => {
