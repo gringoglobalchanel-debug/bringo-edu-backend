@@ -23,29 +23,33 @@ const upload = multer({
   }
 });
 
-// Configurar Google Drive API
+
+// ✅ CONFIGURACIÓN OAUTH 2.0 - FUNCIONA CON CUENTA PERSONAL
 const configureGoogleDrive = () => {
   try {
-    const credentials = {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    };
-
-    if (!credentials.client_email || !credentials.private_key) {
-      console.warn('⚠️  Google Drive no configurado - faltan credenciales');
+    // VERIFICAR CREDENCIALES OAUTH 2.0 (LAS NUEVAS)
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REFRESH_TOKEN) {
+      console.warn('⚠️  Google Drive OAuth no configurado - faltan credenciales OAuth');
+      console.log('ℹ️  Variables necesarias: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN');
       return null;
     }
 
-    const auth = new google.auth.JWT(
-      credentials.client_email,
-      null,
-      credentials.private_key,
-      ['https://www.googleapis.com/auth/drive.file']
+    const auth = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,      // ← 667720262345-0glb797o2bk786k8v88un6hleda7k3st.apps.googleusercontent.com
+      process.env.GOOGLE_CLIENT_SECRET,  // ← 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
+      'https://bringo-edu-backend-2.onrender.com'
     );
 
+    // Configurar con el refresh token
+    auth.setCredentials({
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN  // ← 1//05vMPNmHdLktzCgYIARAAGAUSNwF-L9IrQn5ucTy5oewdIGHqnVOmOnXV1MnE9L1eUa_pWFGGv7epVuWsuo4O4ALX9pt1PG4C0LQ
+    });
+
+    console.log('✅ Google Drive OAuth configurado correctamente');
     return google.drive({ version: 'v3', auth });
+    
   } catch (error) {
-    console.error('❌ Error configurando Google Drive:', error);
+    console.error('❌ Error configurando Google Drive OAuth:', error);
     return null;
   }
 };
@@ -745,3 +749,4 @@ app.listen(PORT, () => {
   console.log(`📍 Drive status: http://localhost:${PORT}/api/drive-status`);
   console.log(`📍 Generate plan: http://localhost:${PORT}/api/generate-plan`);
 });
+
