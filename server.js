@@ -35,14 +35,14 @@ const configureGoogleDrive = () => {
     }
 
     const auth = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,      // ← 667720262345-0glb797o2bk786k8v88un6hleda7k3st.apps.googleusercontent.com
-      process.env.GOOGLE_CLIENT_SECRET,  // ← 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
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
       'https://bringo-edu-backend-2.onrender.com'
     );
 
     // Configurar con el refresh token
     auth.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN  // ← 1//05vMPNmHdLktzCgYIARAAGAUSNwF-L9IrQn5ucTy5oewdIGHqnVOmOnXV1MnE9L1eUa_pWFGGv7epVuWsuo4O4ALX9pt1PG4C0LQ
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN
     });
 
     console.log('✅ Google Drive OAuth configurado correctamente');
@@ -64,7 +64,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Endpoint para generar planes TRIMESTRALES
+// Endpoint para generar planes TRIMESTRALES - CORREGIDO
 app.post('/api/generate-plan', async (req, res) => {
   // Configurar CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -117,9 +117,10 @@ app.post('/api/generate-plan', async (req, res) => {
 - DOCENTE: ${nombreProfesor}
 - CENTRO EDUCATIVO: ${institucion}
 
-**INSTRUCCIONES ESPECÍFICAS - GENERA SOLO JSON VÁLIDO:**
+**INSTRUCCIONES CRÍTICAS - GENERA SOLO JSON VÁLIDO:**
 
-**1. ESTRUCTURA OBLIGATORIA DEL JSON:**
+**1. ESTRUCTURA OBLIGATORIA - DEBE INCLUIR desarrollo_clases para CADA contenido:**
+
 {
   "plan_trimestral": {
     "informacion_general": {
@@ -145,58 +146,62 @@ app.post('/api/generate-plan', async (req, res) => {
     },
     "desarrollo_clases": {
       "CONTENIDO_1_TITULO_REAL": {
-        "duracion": "3-4 sesiones de 45 minutos (ESPECÍFICA según complejidad)",
+        "duracion": "3-4 sesiones de 45 minutos",
         "objetivos_aprendizaje": ["3-4 objetivos medibles y específicos"],
-        "materiales_recursos": ["materiales CONCRETOS y específicos para este contenido"],
+        "materiales_recursos": ["materiales CONCRETOS para este contenido"],
         "sesiones_detalladas": [
           {
-            "titulo": "SESIÓN 1 - Introducción y exploración",
+            "titulo": "SESIÓN 1 - Introducción y exploración inicial",
             "actividades": [
               {
-                "tiempo": "10 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Presentación interactiva del tema usando ejemplos reales"
+                "tiempo": "0-10 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Presentación interactiva usando ejemplos reales del contexto panameño"
               },
               {
-                "tiempo": "15 min", 
-                "descripcion": "ACTIVIDAD CONCRETA: Lluvia de ideas grupal sobre conceptos previos"
+                "tiempo": "10-25 min", 
+                "descripcion": "ACTIVIDAD CONCRETA: Lluvia de ideas grupal sobre conceptos previos con participación activa"
               },
               {
-                "tiempo": "20 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Ejercicio práctico guiado con material concreto"
+                "tiempo": "25-40 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicio práctico guiado usando material concreto disponible en aulas"
+              },
+              {
+                "tiempo": "40-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Síntesis de aprendizajes y anticipación de la próxima sesión"
               }
             ]
           },
           {
-            "titulo": "SESIÓN 2 - Desarrollo y aplicación",
+            "titulo": "SESIÓN 2 - Desarrollo y aplicación práctica",
             "actividades": [
               {
-                "tiempo": "15 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Explicación teórica con ejemplos aplicados"
+                "tiempo": "0-15 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Repaso interactivo de la sesión anterior con preguntas dirigidas"
               },
               {
-                "tiempo": "25 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Trabajo en equipos resolviendo problemas reales"
+                "tiempo": "15-35 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Trabajo en equipos resolviendo problemas del contexto local panameño"
               },
               {
-                "tiempo": "5 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Puesta en común de resultados"
+                "tiempo": "35-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Presentación de soluciones y coevaluación entre compañeros"
               }
             ]
           },
           {
-            "titulo": "SESIÓN 3 - Profundización y evaluación",
+            "titulo": "SESIÓN 3 - Profundización y evaluación formativa",
             "actividades": [
               {
-                "tiempo": "20 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Ejercicios de mayor complejidad guiados"
+                "tiempo": "0-20 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicios de mayor complejidad con apoyo del docente"
               },
               {
-                "tiempo": "15 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Aplicación de instrumento de evaluación formativa"
+                "tiempo": "20-35 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Aplicación de instrumento de evaluación formativa individual"
               },
               {
-                "tiempo": "10 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Retroalimentación y conclusiones"
+                "tiempo": "35-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Retroalimentación personalizada y establecimiento de metas"
               }
             ]
           }
@@ -208,43 +213,84 @@ app.post('/api/generate-plan', async (req, res) => {
         "materiales_recursos": ["materiales específicos para este contenido"],
         "sesiones_detalladas": [
           {
-            "titulo": "SESIÓN 1 - Fundamentos conceptuales",
+            "titulo": "SESIÓN 1 - Fundamentos conceptuales básicos",
             "actividades": [
               {
-                "tiempo": "15 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Exposición dialogada con apoyo visual"
+                "tiempo": "0-15 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Exposición dialogada con apoyo visual y ejemplos locales"
               },
               {
-                "tiempo": "20 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Ejercicios de aplicación básica"
+                "tiempo": "15-30 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicios de aplicación básica con supervisión docente"
               },
               {
-                "tiempo": "10 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Socialización de aprendizajes"
+                "tiempo": "30-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Socialización de aprendizajes y dudas frecuentes"
               }
             ]
           },
           {
-            "titulo": "SESIÓN 2 - Práctica integradora", 
+            "titulo": "SESIÓN 2 - Práctica integradora y colaborativa", 
             "actividades": [
               {
-                "tiempo": "25 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Resolución de casos prácticos en equipos"
+                "tiempo": "0-25 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Resolución de casos prácticos en equipos cooperativos"
               },
               {
-                "tiempo": "15 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Presentación de soluciones"
+                "tiempo": "25-40 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Presentación de soluciones creativas al grupo completo"
               },
               {
-                "tiempo": "5 min",
-                "descripcion": "ACTIVIDAD CONCRETA: Coevaluación entre pares"
+                "tiempo": "40-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Coevaluación entre pares y autoevaluación del proceso"
+              }
+            ]
+          }
+        ]
+      },
+      "CONTENIDO_3_TITULO_REAL": {
+        "duracion": "2-3 sesiones de 45 minutos", 
+        "objetivos_aprendizaje": ["3-4 objetivos medibles"],
+        "materiales_recursos": ["materiales específicos"],
+        "sesiones_detalladas": [
+          {
+            "titulo": "SESIÓN 1 - Aproximación inicial al contenido",
+            "actividades": [
+              {
+                "tiempo": "0-10 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Activación de conocimientos previos mediante preguntas detonadoras"
+              },
+              {
+                "tiempo": "10-30 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Exploración guiada del tema con ejemplos contextualizados"
+              },
+              {
+                "tiempo": "30-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Ejercicio de aplicación inicial con retroalimentación inmediata"
+              }
+            ]
+          },
+          {
+            "titulo": "SESIÓN 2 - Consolidación y práctica extendida",
+            "actividades": [
+              {
+                "tiempo": "0-20 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Profundización en aspectos clave del contenido"
+              },
+              {
+                "tiempo": "20-40 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Actividad práctica extendida con variados niveles de complejidad"
+              },
+              {
+                "tiempo": "40-45 min",
+                "descripcion": "ACTIVIDAD CONCRETA: Reflexión metacognitiva sobre el proceso de aprendizaje"
               }
             ]
           }
         ]
       }
     },
-    "observaciones": "Texto con recomendaciones prácticas para implementación"
+    "observaciones": "Texto con recomendaciones prácticas para implementación en el aula panameña"
   }
 }
 
@@ -252,16 +298,17 @@ app.post('/api/generate-plan', async (req, res) => {
 
 - Los CONTENIDOS deben ser REALES del currículo MEDUCA para ${gradoPlan} ${materia}
 - Cada contenido en "desarrollo_clases" debe tener entre 2-4 sesiones REALISTAS
-- Las ACTIVIDADES deben ser CONCRETAS, PRÁCTICAS y APLICABLES en aula
+- Las ACTIVIDADES deben ser CONCRETAS, PRÁCTICAS y APLICABLES en aula panameña
 - Los MATERIALES deben ser ESPECÍFICOS y disponibles en escuelas panameñas
 - Las DURACIONES deben ser REALISTAS (45 minutos por sesión)
 - Los OBJETIVOS deben ser MEDIBLES y ESPECÍFICOS
+- DEBEN generarse DESARROLLOS DE CLASES para TODOS los contenidos listados
 
 **3. EJEMPLOS DE ACTIVIDADES CONCRETAS:**
-- "Los estudiantes identificarán patrones usando fichas de colores"
-- "Trabajo en equipos resolviendo problemas del contexto local"
-- "Elaboración de mapa conceptual colaborativo"
-- "Simulación de situaciones reales aplicando conceptos"
+- "Los estudiantes identificarán patrones usando fichas de colores en equipos de 4"
+- "Trabajo en equipos resolviendo problemas matemáticos del contexto local panameño"
+- "Elaboración de mapa conceptual colaborativo sobre temas de ciencias sociales"
+- "Simulación de situaciones reales aplicando conceptos de lengua y literatura"
 
 **IMPORTANTE: Responde ÚNICAMENTE con el JSON válido, sin texto adicional, sin comentarios, sin markdown.**`;
 
@@ -355,76 +402,101 @@ app.post('/api/generate-plan', async (req, res) => {
         planContenido.evaluacion = planContenido.estructura_pedagogica.instrumentos_evaluacion?.formativa || ['Evaluación formativa continua'];
       }
 
-      // ✅ NUEVO: PROCESAR DESARROLLO DE CLASES
+      // ✅ CORREGIDO: PROCESAR DESARROLLO DE CLASES - VERSIÓN MEJORADA
       if (planContenido.desarrollo_clases) {
-        planContenido.desarrolloClases = planContenido.desarrollo_clases;
-      } else if (planContenido.desarrollo_detallado_contenido && Array.isArray(planContenido.desarrollo_detallado_contenido)) {
-        // Mapear desarrollo_detallado_contenido a desarrolloClases
         planContenido.desarrolloClases = {};
-        planContenido.desarrollo_detallado_contenido.forEach((desarrollo, index) => {
-          const titulo = desarrollo.titulo_contenido || `Contenido ${index + 1}`;
-          planContenido.desarrolloClases[titulo] = {
+        
+        // Convertir desarrollo_clases al formato que espera el frontend
+        Object.entries(planContenido.desarrollo_clases).forEach(([contenidoKey, desarrollo]) => {
+          planContenido.desarrolloClases[contenidoKey] = {
             duracion: desarrollo.duracion || '3 sesiones de 45 minutos',
-            objetivos: desarrollo.objetivos_aprendizaje || [
+            objetivos: desarrollo.objetivos_aprendizaje || desarrollo.objetivos || [
               'Comprender conceptos fundamentales',
               'Aplicar conocimientos en situaciones prácticas'
             ],
-            materiales: desarrollo.materiales_recursos || [
+            materiales: desarrollo.materiales_recursos || desarrollo.materiales || [
               'Material didáctico impreso',
               'Recursos multimedia'
             ],
-            fases: desarrollo.sesiones_detalladas || [
-              {
-                titulo: 'Introducción',
-                actividades: [
-                  { tiempo: '15 min', descripcion: 'Presentación del tema' },
-                  { tiempo: '30 min', descripcion: 'Desarrollo de actividades' }
-                ]
-              }
-            ]
+            // ✅ CORRECCIÓN CRÍTICA: Convertir "sesiones_detalladas" a "fases"
+            fases: (desarrollo.sesiones_detalladas || []).map((sesion, index) => ({
+              titulo: sesion.titulo || `Sesión ${index + 1}`,
+              actividades: sesion.actividades || [
+                { tiempo: '45 min', descripcion: 'Desarrollo de la sesión' }
+              ]
+            }))
           };
         });
+        
+        console.log('✅ Desarrollo de clases procesado correctamente');
+        console.log('📊 Contenidos con desarrollo:', Object.keys(planContenido.desarrolloClases));
+        
       } else if (planContenido.contenidos && Array.isArray(planContenido.contenidos)) {
-        // Si no viene desarrollo, crear uno básico
+        // Si no viene desarrollo_clases, crear uno automático para CADA contenido
+        console.log('⚠️  No se encontró desarrollo_clases, generando automáticamente');
         planContenido.desarrolloClases = {};
+        
         planContenido.contenidos.forEach((contenido, index) => {
-          planContenido.desarrolloClases[`Contenido ${index + 1}: ${contenido.substring(0, 50)}...`] = {
+          const tituloContenido = contenido.length > 50 ? contenido.substring(0, 47) + '...' : contenido;
+          
+          planContenido.desarrolloClases[tituloContenido] = {
             duracion: '3 sesiones de 45 minutos',
             objetivos: [
-              `Comprender: ${contenido.substring(0, 30)}`,
-              'Aplicar conocimientos prácticos',
-              'Desarrollar habilidades creativas'
+              `Comprender los conceptos de: ${contenido.substring(0, 30)}`,
+              'Aplicar conocimientos en situaciones prácticas',
+              'Desarrollar habilidades de análisis y creatividad'
             ],
             materiales: [
-              'Material didáctico',
-              'Recursos artísticos',
-              'Instrumentos de evaluación'
+              'Material didáctico impreso',
+              'Recursos multimedia',
+              'Instrumentos de evaluación formativa'
             ],
             fases: [
               {
-                titulo: 'Introducción y exploración',
+                titulo: 'SESIÓN 1 - Introducción y exploración',
                 actividades: [
-                  { tiempo: '10 min', descripcion: 'Presentación del tema artístico' },
-                  { tiempo: '20 min', descripcion: 'Exploración de conceptos' }
+                  { tiempo: '10 min', descripcion: 'Presentación del tema y activación de conocimientos previos' },
+                  { tiempo: '20 min', descripcion: 'Explicación teórica con ejemplos prácticos' },
+                  { tiempo: '15 min', descripcion: 'Ejercicio guiado de aplicación inicial' }
                 ]
               },
               {
-                titulo: 'Desarrollo creativo',
+                titulo: 'SESIÓN 2 - Desarrollo y práctica',
                 actividades: [
-                  { tiempo: '30 min', descripcion: 'Actividad práctica creativa' },
-                  { tiempo: '10 min', descripcion: 'Compartir resultados' }
+                  { tiempo: '15 min', descripcion: 'Repaso de conceptos clave' },
+                  { tiempo: '25 min', descripcion: 'Actividad práctica en equipos colaborativos' },
+                  { tiempo: '5 min', descripcion: 'Socialización de resultados' }
                 ]
               },
               {
-                titulo: 'Reflexión y cierre',
+                titulo: 'SESIÓN 3 - Profundización y evaluación',
                 actividades: [
-                  { tiempo: '10 min', descripcion: 'Reflexión grupal' },
-                  { tiempo: '5 min', descripcion: 'Conclusiones' }
+                  { tiempo: '20 min', descripcion: 'Ejercicios de mayor complejidad' },
+                  { tiempo: '15 min', descripcion: 'Aplicación de instrumento de evaluación' },
+                  { tiempo: '10 min', descripcion: 'Retroalimentación y conclusiones' }
                 ]
               }
             ]
           };
         });
+      } else {
+        // Fallback final
+        console.log('⚠️  No se pudieron generar desarrollos de clase');
+        planContenido.desarrolloClases = {
+          "Contenido general": {
+            duracion: '3 sesiones de 45 minutos',
+            objetivos: ['Desarrollar competencias específicas', 'Aplicar conocimientos prácticos'],
+            materiales: ['Material básico del aula'],
+            fases: [
+              {
+                titulo: 'Sesión introductoria',
+                actividades: [
+                  { tiempo: '45 min', descripcion: 'Desarrollo completo de la sesión' }
+                ]
+              }
+            ]
+          }
+        };
       }
       
       console.log('🔍 DEBUG - Plan corregido:', JSON.stringify(planContenido, null, 2));
@@ -441,7 +513,7 @@ app.post('/api/generate-plan', async (req, res) => {
         institucion: institucion,
         anioEscolar: new Date().getFullYear().toString(),
         duracionSemanas: 11,
-        contenidos: ['Contenido 1 según MEDUCA', 'Contenido 2 según MEDUCA'],
+        contenidos: ['Contenido 1 según MEDUCA', 'Contenido 2 según MEDUCA', 'Contenido 3 según MEDUCA'],
         competencias: ['Competencia 1 MEDUCA', 'Competencia 2 MEDUCA'],
         indicadoresLogro: ['Indicador 1 observable', 'Indicador 2 medible'],
         metodologia: 'Estrategias metodológicas alineadas con MEDUCA',
@@ -464,7 +536,7 @@ app.post('/api/generate-plan', async (req, res) => {
             ],
             fases: [
               {
-                titulo: 'Introducción y contextualización',
+                titulo: 'SESIÓN 1 - Introducción y contextualización',
                 actividades: [
                   { tiempo: '10 min', descripcion: 'Presentación del tema y objetivos' },
                   { tiempo: '15 min', descripcion: 'Activación de conocimientos previos' },
@@ -472,7 +544,7 @@ app.post('/api/generate-plan', async (req, res) => {
                 ]
               },
               {
-                titulo: 'Desarrollo y práctica',
+                titulo: 'SESIÓN 2 - Desarrollo y práctica',
                 actividades: [
                   { tiempo: '25 min', descripcion: 'Ejercicios prácticos guiados' },
                   { tiempo: '15 min', descripcion: 'Trabajo en equipos colaborativos' },
@@ -480,10 +552,41 @@ app.post('/api/generate-plan', async (req, res) => {
                 ]
               },
               {
-                titulo: 'Evaluación y cierre',
+                titulo: 'SESIÓN 3 - Evaluación y cierre',
                 actividades: [
                   { tiempo: '10 min', descripcion: 'Aplicación de instrumento de evaluación' },
                   { tiempo: '5 min', descripcion: 'Retroalimentación y conclusiones' }
+                ]
+              }
+            ]
+          },
+          "Contenido 2: Contenido 2 según MEDUCA...": {
+            duracion: '2 sesiones de 45 minutos',
+            objetivos: [
+              'Analizar conceptos intermedios',
+              'Resolver problemas prácticos',
+              'Desarrollar pensamiento crítico'
+            ],
+            materiales: [
+              'Material de apoyo',
+              'Recursos visuales',
+              'Guías de trabajo'
+            ],
+            fases: [
+              {
+                titulo: 'SESIÓN 1 - Fundamentos y aplicación',
+                actividades: [
+                  { tiempo: '15 min', descripcion: 'Introducción teórica' },
+                  { tiempo: '25 min', descripcion: 'Ejercicios prácticos' },
+                  { tiempo: '5 min', descripcion: 'Cierre y preparación' }
+                ]
+              },
+              {
+                titulo: 'SESIÓN 2 - Profundización práctica',
+                actividades: [
+                  { tiempo: '30 min', descripcion: 'Actividad integradora' },
+                  { tiempo: '10 min', descripcion: 'Evaluación formativa' },
+                  { tiempo: '5 min', descripcion: 'Reflexión final' }
                 ]
               }
             ]
@@ -749,4 +852,3 @@ app.listen(PORT, () => {
   console.log(`📍 Drive status: http://localhost:${PORT}/api/drive-status`);
   console.log(`📍 Generate plan: http://localhost:${PORT}/api/generate-plan`);
 });
-
